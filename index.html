@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador e Leitor de QR Code</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr"></script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; background: linear-gradient(135deg, #ff9a9e, #fad0c4); padding: 20px; color: #fff; }
+        input, button, select { margin: 10px; padding: 12px; font-size: 16px; border: none; border-radius: 5px; }
+        input, select { width: 80%; max-width: 300px; }
+        button { background: #6200ea; color: white; cursor: pointer; }
+        button:hover { background: #3700b3; }
+        #qrcode { margin-top: 20px; background: white; padding: 10px; display: inline-block; border-radius: 10px; }
+        .adsense { margin: 20px 0; background: #fff; padding: 10px; text-align: center; border-radius: 5px; color: #333; }
+        h1, h2 { color: #fff; }
+    </style>
+</head>
+<body>
+    <h1>Gerador e Leitor de QR Code</h1>
+    
+    <div class="adsense">[Espaço para Anúncios]</div>
+    
+    <div id="input-container">
+        <input type="text" id="text" placeholder="Digite um texto ou URL">
+    </div>
+    <select id="qrType" onchange="updateInputFields()">
+        <option value="text">Texto/URL</option>
+        <option value="wifi">Wi-Fi</option>
+    </select>
+    <button onclick="generateQRCode()">Gerar QR Code</button>
+    <div id="qrcode"></div>
+    
+    <button onclick="downloadQRCode()">Baixar QR Code</button>
+    <button onclick="shareQRCode()">Compartilhar QR Code</button>
+    
+    <div class="adsense">[Espaço para Anúncios]</div>
+    
+    <h2>Ler QR Code da Imagem</h2>
+    <input type="file" id="fileInput" accept="image/*" onchange="decodeQR()">
+    <canvas id="canvas" hidden></canvas>
+    <p id="decodedText"></p>
+    
+    <script>
+        let lastQRCode = "";
+        
+        function updateInputFields() {
+            const type = document.getElementById("qrType").value;
+            const inputContainer = document.getElementById("input-container");
+            
+            if (type === "wifi") {
+                inputContainer.innerHTML = `
+                    <input type="text" id="wifiSSID" placeholder="Nome da Rede (SSID)">
+                    <input type="text" id="wifiPassword" placeholder="Senha (opcional)">
+                    <select id="wifiEncryption">
+                        <option value="WPA">WPA/WPA2</option>
+                        <option value="WEP">WEP</option>
+                        <option value="">Nenhuma</option>
+                    </select>
+                `;
+            } else {
+                inputContainer.innerHTML = `<input type="text" id="text" placeholder="Digite um texto ou URL">`;
+            }
+        }
+        
+        function generateQRCode() {
+            let qrData = "";
+            const type = document.getElementById("qrType").value;
+            
+            if (type === "wifi") {
+                const ssid = document.getElementById("wifiSSID").value.trim();
+                const password = document.getElementById("wifiPassword").value.trim();
+                const encryption = document.getElementById("wifiEncryption").value;
+                if (!ssid) {
+                    alert("Por favor, insira o nome da rede Wi-Fi!");
+                    return;
+                }
+                qrData = `WIFI:T:${encryption};S:${ssid};P:${password};;`;
+            } else {
+                qrData = document.getElementById("text").value.trim();
+                if (!qrData) {
+                    alert("Por favor, digite um conteúdo válido!");
+                    return;
+                }
+            }
+            
+            document.getElementById("qrcode").innerHTML = "";
+            lastQRCode = qrData;
+            new QRCode(document.getElementById("qrcode"), {
+                text: qrData,
+                width: 200,
+                height: 200,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+        }
+        
+        function downloadQRCode() {
+            const qrCanvas = document.querySelector("#qrcode canvas");
+            if (!qrCanvas) {
+                alert("Por favor, gere um QR Code primeiro!");
+                return;
+            }
+            const link = document.createElement("a");
+            link.href = qrCanvas.toDataURL("image/png");
+            link.download = "qrcode.png";
+            link.click();
+        }
+        
+        function shareQRCode() {
+            if (!navigator.share) {
+                alert("Seu navegador não suporta compartilhamento!");
+                return;
+            }
+            navigator.share({
+                title: "Meu QR Code",
+                text: "Veja este QR Code",
+                url: lastQRCode
+            }).catch(err => console.log("Erro ao compartilhar: ", err));
+        }
+        
+        function decodeQR() {
+            const file = document.getElementById("fileInput").files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.getElementById("canvas");
+                    const ctx = canvas.getContext("2d");
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0, img.width, img.height);
+                    
+                    const imageData = ctx.getImageData(0, 0, img.width, img.height);
+                    const code = jsQR(imageData.data, img.width, img.height);
+                    if (code) {
+                        document.getElementById("decodedText").innerText = "QR Code: " + code.data;
+                    } else {
+                        document.getElementById("decodedText").innerText = "Nenhum QR Code detectado.";
+                    }
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+    </script>
+</body>
+</html>
